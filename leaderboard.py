@@ -17,15 +17,15 @@ def generate_leaderboard_embed():
         embed.description = "No Data Yet."
         return embed
 
-    description = ""
+    text = ""
     rank = 1
 
     for user_id, elo, wins, losses in rows:
-        description += (
+        text += (
             f"**#{rank}** <@{user_id}>\n"
             f"🩸 Elo: {elo} | ✅ Wins: {wins} | ❌ Losses: {losses}\n\n"
         )
         rank += 1
 
-    embed.description = description
+    embed.description = text
     return embed
