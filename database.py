@@ -1,10 +1,17 @@
 import psycopg2
+import os
 from config import DATABASE_URL
 
-conn = psycopg2.connect(DATABASE_URL)
+def connect():
+    if not DATABASE_URL:
+        raise Exception("DATABASE_URL not found!")
+
+    return psycopg2.connect(DATABASE_URL)
+
+conn = connect()
 cursor = conn.cursor()
 
-# Create tables automatically
+# Auto create tables
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS players (
     user_id TEXT PRIMARY KEY,
