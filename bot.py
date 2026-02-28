@@ -1,7 +1,8 @@
 import discord
 from discord import app_commands
+from discord.ui import Select, View
 from config import TOKEN
-from database import execute
+from database import execute, fetch
 from history import add_match
 from leaderboard import generate_leaderboard_embed
 import asyncio
@@ -54,7 +55,9 @@ async def on_ready():
     print(f"🚀 Logged in as {bot.user}")
 
 
-# ================= COMMANDS ================= #
+# ==========================================================
+# 🔥 ELO SYSTEM
+# ==========================================================
 
 @tree.command(name="giveelo", description="Give elo to a user")
 @app_commands.checks.has_permissions(administrator=True)
@@ -90,53 +93,6 @@ async def removeelo(interaction: discord.Interaction,
     )
 
 
-@tree.command(name="addwin", description="Register a win (+5 elo)")
-@app_commands.checks.has_permissions(administrator=True)
-async def addwin(interaction: discord.Interaction,
-                 winner: discord.Member,
-                 loser: discord.Member):
-
-    execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
-            (str(winner.id),))
-
-    execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
-            (str(loser.id),))
-
-    execute(
-        "UPDATE users SET wins = wins + 1, elo = elo + 5 WHERE user_id=%s",
-        (str(winner.id),)
-    )
-
-    execute(
-        "UPDATE users SET losses = losses + 1, elo = elo - 5 WHERE user_id=%s",
-        (str(loser.id),)
-    )
-
-    add_match(winner.id, loser.id)
-
-    await interaction.response.send_message(
-        f"🏆 Match Recorded\nWinner: {winner.mention}\nLoser: {loser.mention}"
-    )
-
-
-@tree.command(name="addloss", description="Register a loss (-5 elo)")
-@app_commands.checks.has_permissions(administrator=True)
-async def addloss(interaction: discord.Interaction,
-                  user: discord.Member):
-
-    execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
-            (str(user.id),))
-
-    execute(
-        "UPDATE users SET losses = losses + 1, elo = elo - 5 WHERE user_id=%s",
-        (str(user.id),)
-    )
-
-    await interaction.response.send_message(
-        f"💀 Loss recorded for {user.mention}"
-    )
-
-
 @tree.command(name="leaderboard", description="Show top 10 leaderboard")
 async def leaderboard(interaction: discord.Interaction):
 
@@ -147,7 +103,102 @@ async def leaderboard(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed)
 
 
-# ================= START BOT ================= #
+# ==========================================================
+# 🔥 GRIND TEAM SYSTEM
+# ==========================================================
+
+# Store Grind Role
+@tree.command(name="setgrindteam", description="Set Grind Team Role")
+@app_commands.checks.has_permissions(administrator=True)
+async def setgrindteam(interaction: discord.Interaction, role: discord.Role):
+
+    execute("""
+        INSERT INTO bot_settings (key, value)
+        VALUES ('grind_role', %s)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    """, (str(role.id),))
+
+    await interaction.response.send_message(
+        f"✅ Grind Team Role Set: {role.mention}",
+        ephemeral=True
+    )
+
+
+# Help Grinding Command
+@tree.command(name="helpgrinding", description="Request Help for Grinding")
+async def helpgrinding(interaction: discord.Interaction):
+
+    class GrindSelect(Select):
+        def __init__(self):
+            options = [
+                discord.SelectOption(label="Quests"),
+                discord.SelectOption(label="Raids"),
+                discord.SelectOption(label="WorldBosses"),
+            ]
+
+            super().__init__(
+                placeholder="Select What You Need Help With...",
+                min_values=1,
+                max_values=1,
+                options=options
+            )
+
+        async def callback(self, select_interaction: discord.Interaction):
+
+            choice = self.values[0]
+
+            # Get Grind Role From DB
+            row = fetch("SELECT value FROM bot_settings WHERE key='grind_role'")
+
+            if not row:
+                await select_interaction.response.send_message(
+                    "❌ Grind Role Not Set",
+                    ephemeral=True
+                )
+                return
+
+            role_id = int(row[0][0])
+            role = interaction.guild.get_role(role_id)
+
+            # Get/Create Category
+            category = discord.utils.get(
+                interaction.guild.categories,
+                name="Grinding"
+            )
+
+            if not category:
+                category = await interaction.guild.create_category("Grinding")
+
+            # Create Channel
+            channel = await interaction.guild.create_text_channel(
+                name=f"{choice.lower()}-{interaction.user.name}",
+                category=category
+            )
+
+            await channel.send(
+                f"{role.mention}\n🔥 **Grinding Request**\n"
+                f"Type: `{choice}`\n"
+                f"Requested By: {interaction.user.mention}"
+            )
+
+            await select_interaction.response.send_message(
+                f"✅ Channel Created: {channel.mention}",
+                ephemeral=True
+            )
+
+    view = View()
+    view.add_item(GrindSelect())
+
+    await interaction.response.send_message(
+        "🎮 Select What You Need Help With:",
+        view=view,
+        ephemeral=True
+    )
+
+
+# ==========================================================
+# 🔥 START BOT
+# ==========================================================
 
 async def main():
     await asyncio.sleep(2)
