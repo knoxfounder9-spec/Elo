@@ -3,8 +3,9 @@ from discord import app_commands
 from config import TOKEN
 from database import execute
 from history import add_match
-from leaderboard import generate_leaderboard_embed
+from image_lb import generate_image   # 🔥 CHANGED HERE
 import asyncio
+import os
 
 
 # ================= INTENTS ================= #
@@ -79,6 +80,9 @@ async def removeelo(interaction: discord.Interaction,
                     user: discord.Member,
                     amount: int):
 
+    execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
+            (str(user.id),))
+
     execute("UPDATE users SET elo = elo - %s WHERE user_id=%s",
             (amount, str(user.id)))
 
@@ -93,7 +97,6 @@ async def addwin(interaction: discord.Interaction,
                  winner: discord.Member,
                  loser: discord.Member):
 
-    # Ensure both exist
     execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
             (str(winner.id),))
 
@@ -135,14 +138,20 @@ async def addloss(interaction: discord.Interaction,
     )
 
 
-@tree.command(name="leaderboard", description="Show top 10 leaderboard")
+# 🔥 IMAGE LEADERBOARD COMMAND
+
+@tree.command(name="leaderboard", description="Show leaderboard image")
 async def leaderboard(interaction: discord.Interaction):
 
     await interaction.response.defer()
 
-    embed = generate_leaderboard_embed()
+    image_path = generate_image()
 
-    await interaction.followup.send(embed=embed)
+    await interaction.followup.send(
+        file=discord.File(image_path)
+    )
+
+    os.remove(image_path)
 
 
 # ================= START BOT ================= #
