@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from config import TOKEN
-from database import execute, fetch
+from database import execute
 from history import add_match
 from leaderboard import generate_leaderboard_embed
 import asyncio
@@ -12,8 +12,6 @@ import asyncio
 intents = discord.Intents.default()
 intents.members = True
 
-
-# ================= BOT CLASS (PRODUCTION SAFE) ================= #
 
 class MyBot(discord.Client):
     def __init__(self):
@@ -39,6 +37,7 @@ async def on_error(event, *args, **kwargs):
 
 @tree.error
 async def on_command_error(interaction: discord.Interaction, error: Exception):
+
     print("Slash Error:", error)
 
     if not interaction.response.is_done():
@@ -57,7 +56,6 @@ async def on_ready():
 
 # ================= COMMANDS ================= #
 
-# 🔥 GIVE ELO
 @tree.command(name="giveelo", description="Give elo to a user")
 @app_commands.checks.has_permissions(administrator=True)
 async def giveelo(interaction: discord.Interaction,
@@ -75,7 +73,6 @@ async def giveelo(interaction: discord.Interaction,
     )
 
 
-# 🔥 REMOVE ELO
 @tree.command(name="removeelo", description="Remove elo from a user")
 @app_commands.checks.has_permissions(administrator=True)
 async def removeelo(interaction: discord.Interaction,
@@ -90,18 +87,28 @@ async def removeelo(interaction: discord.Interaction,
     )
 
 
-# 🔥 ADD WIN ( +5 Elo )
 @tree.command(name="addwin", description="Register a win (+5 elo)")
 @app_commands.checks.has_permissions(administrator=True)
 async def addwin(interaction: discord.Interaction,
                  winner: discord.Member,
                  loser: discord.Member):
 
-    execute("UPDATE users SET wins = wins + 1, elo = elo + 5 WHERE user_id=%s",
+    # Ensure both exist
+    execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
             (str(winner.id),))
 
-    execute("UPDATE users SET losses = losses + 1, elo = elo - 5 WHERE user_id=%s",
+    execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
             (str(loser.id),))
+
+    execute(
+        "UPDATE users SET wins = wins + 1, elo = elo + 5 WHERE user_id=%s",
+        (str(winner.id),)
+    )
+
+    execute(
+        "UPDATE users SET losses = losses + 1, elo = elo - 5 WHERE user_id=%s",
+        (str(loser.id),)
+    )
 
     add_match(winner.id, loser.id)
 
@@ -110,21 +117,24 @@ async def addwin(interaction: discord.Interaction,
     )
 
 
-# 🔥 ADD LOSS
 @tree.command(name="addloss", description="Register a loss (-5 elo)")
 @app_commands.checks.has_permissions(administrator=True)
 async def addloss(interaction: discord.Interaction,
                   user: discord.Member):
 
-    execute("UPDATE users SET losses = losses + 1, elo = elo - 5 WHERE user_id=%s",
+    execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
             (str(user.id),))
 
+    execute(
+        "UPDATE users SET losses = losses + 1, elo = elo - 5 WHERE user_id=%s",
+        (str(user.id),)
+    )
+
     await interaction.response.send_message(
-        f"💀 Loss added to {user.mention}"
+        f"💀 Loss recorded for {user.mention}"
     )
 
 
-# 🏆 LEADERBOARD
 @tree.command(name="leaderboard", description="Show top 10 leaderboard")
 async def leaderboard(interaction: discord.Interaction):
 
@@ -135,7 +145,7 @@ async def leaderboard(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed)
 
 
-# ================= BOT START ================= #
+# ================= START BOT ================= #
 
 async def main():
     await asyncio.sleep(2)
