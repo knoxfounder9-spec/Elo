@@ -97,4 +97,10 @@ async def ai(interaction: discord.Interaction, prompt: str):
     await interaction.followup.send(reply)
 
 
-bot.run(TOKEN)
+import asyncio
+
+async def main():
+    await asyncio.sleep(5)  # prevents instant reconnect spam
+    await bot.start(TOKEN)
+
+asyncio.run(main())
