@@ -9,7 +9,7 @@ def generate_leaderboard_embed():
     )
 
     embed = discord.Embed(
-        title=" <a:emoji_3:1477325503961501969>⛩️🩸**BLOOD BATTLES**🩸⛩️<a:emoji_3:1477325503961501969>",
+        title="🏆 BLOOD LEADERBOARD",
         color=0x8B0000
     )
 
@@ -17,15 +17,17 @@ def generate_leaderboard_embed():
         embed.description = "No Data Yet."
         return embed
 
-    text = ""
+    description = ""
     rank = 1
 
     for user_id, elo, wins, losses in rows:
-        text += (
+
+        description += (
             f"**#{rank}** <@{user_id}>\n"
             f"🩸 Elo: {elo} | ✅ Wins: {wins} | ❌ Losses: {losses}\n\n"
         )
+
         rank += 1
 
-    embed.description = text
+    embed.description = description
     return embed
