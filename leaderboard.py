@@ -24,7 +24,7 @@ def generate_leaderboard_embed():
 
         description += (
             f"**#{rank}** <@{user_id}>\n"
-            f"🩸 Elo: {elo} | ✅ Wins: {wins} | ❌ Losses: {losses}\n\n"
+            f"<a:emoji_7:1477346975815831572> Elo: {elo} | <a:emoji_9:1477348230076301322> Wins: {wins} | <a:emoji_10:1477348263232540772>Losses: {losses}\n\n"
         )
 
         rank += 1
