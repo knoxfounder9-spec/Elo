@@ -33,7 +33,7 @@ def generate_image():
 
     # ================= TITLE ================= #
 
-    title_text = "🏆 BLOOD LEADERBOARD"
+    title_text = "<a:emoji_3:1477325503961501969># ⛩️🩸**BLOOD BATTLES**🩸⛩️<a:emoji_3:1477325503961501969>"
 
     title_bbox = draw.textbbox((0, 0), title_text, font=font_title)
     title_width = title_bbox[2] - title_bbox[0]
