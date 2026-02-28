@@ -9,7 +9,7 @@ def generate_leaderboard_embed():
     )
 
     embed = discord.Embed(
-        title="# <a:emoji_3:1477325503961501969>⛩️🩸**BLOOD BATTLES**🩸⛩️<a:emoji_3:1477325503961501969>",
+        title=" <a:emoji_3:1477325503961501969>⛩️🩸**BLOOD BATTLES**🩸⛩️<a:emoji_3:1477325503961501969>",
         color=0x8B0000
     )
 
