@@ -1,27 +1,31 @@
 import discord
 from database import fetch
 
-leaderboard_message = None
 
-async def update_leaderboard(channel):
-    global leaderboard_message
+def generate_leaderboard_embed():
 
-    rows = fetch("SELECT user_id, elo, wins, losses FROM players ORDER BY elo DESC LIMIT 10")
-
-    desc = ""
-    rank = 1
-
-    for user_id, elo, wins, losses in rows:
-        desc += f"**#{rank}** <@{user_id}> 🩸 {elo} Elo | ✅ {wins} ❌ {losses}\n"
-        rank += 1
+    rows = fetch(
+        "SELECT user_id, elo, wins, losses FROM users ORDER BY elo DESC LIMIT 10"
+    )
 
     embed = discord.Embed(
-        title="🩸 BLOOD LEADERBOARD",
-        description=desc or "No Data",
+        title="🏆 BLOOD LEADERBOARD",
         color=0x8B0000
     )
 
-    if leaderboard_message is None:
-        leaderboard_message = await channel.send(embed=embed)
-    else:
-        await leaderboard_message.edit(embed=embed)
+    if not rows:
+        embed.description = "No Data Yet."
+        return embed
+
+    description = ""
+    rank = 1
+
+    for user_id, elo, wins, losses in rows:
+        description += (
+            f"**#{rank}** <@{user_id}>\n"
+            f"🩸 Elo: {elo} | ✅ Wins: {wins} | ❌ Losses: {losses}\n\n"
+        )
+        rank += 1
+
+    embed.description = description
+    return embed
