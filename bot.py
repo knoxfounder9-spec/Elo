@@ -3,9 +3,8 @@ from discord import app_commands
 from config import TOKEN
 from database import execute
 from history import add_match
-from image_lb import generate_image   # 🔥 CHANGED HERE
+from leaderboard import generate_leaderboard_embed
 import asyncio
-import os
 
 
 # ================= INTENTS ================= #
@@ -138,20 +137,14 @@ async def addloss(interaction: discord.Interaction,
     )
 
 
-# 🔥 IMAGE LEADERBOARD COMMAND
-
-@tree.command(name="leaderboard", description="Show leaderboard image")
+@tree.command(name="leaderboard", description="Show top 10 leaderboard")
 async def leaderboard(interaction: discord.Interaction):
 
     await interaction.response.defer()
 
-    image_path = generate_image()
+    embed = generate_leaderboard_embed()
 
-    await interaction.followup.send(
-        file=discord.File(image_path)
-    )
-
-    os.remove(image_path)
+    await interaction.followup.send(embed=embed)
 
 
 # ================= START BOT ================= #
