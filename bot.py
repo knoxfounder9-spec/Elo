@@ -314,7 +314,7 @@ async def applygrindteam(interaction: discord.Interaction):
 
     # ================= EMBED WITH SMALL BANNER ================= #
 
-    logo_url = "https://your-image-link.com/logo.png"  # 🔥 CHANGE THIS
+    logo_url = "https://image2url.com/r2/default/images/1772347380885-efdc69ca-9894-43e8-a8eb-983eedf7e2ff.png"  # 🔥 CHANGE THIS
 
     embed = discord.Embed(
         title="📥 Grind Team Application",
