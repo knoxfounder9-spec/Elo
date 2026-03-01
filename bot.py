@@ -44,7 +44,83 @@ async def leaderboard(interaction: discord.Interaction):
     embed = generate_leaderboard_embed()
     await interaction.followup.send(embed=embed)
 
+# ==========================================================
+# 🔥 ELO ADMIN COMMANDS
+# ==========================================================
 
+@tree.command(name="addelo", description="Add Elo To A User")
+@app_commands.checks.has_permissions(administrator=True)
+async def addelo(interaction: discord.Interaction,
+                 user: discord.Member,
+                 amount: int):
+
+    execute("""
+        INSERT INTO users (user_id) VALUES (%s)
+        ON CONFLICT DO NOTHING
+    """, (str(user.id),))
+
+    execute("""
+        UPDATE users SET elo = elo + %s WHERE user_id = %s
+    """, (amount, str(user.id)))
+
+    await interaction.response.send_message(
+        f"✅ Added `{amount}` Elo to {user.mention}",
+        ephemeral=True
+    )
+
+
+@tree.command(name="removeelo", description="Remove Elo From A User")
+@app_commands.checks.has_permissions(administrator=True)
+async def removeelo(interaction: discord.Interaction,
+                    user: discord.Member,
+                    amount: int):
+
+    execute("""
+        UPDATE users SET elo = elo - %s WHERE user_id = %s
+    """, (amount, str(user.id)))
+
+    await interaction.response.send_message(
+        f"❌ Removed `{amount}` Elo from {user.mention}",
+        ephemeral=True
+    )
+
+
+@tree.command(name="addwin", description="Add Win (+5 Elo)")
+@app_commands.checks.has_permissions(administrator=True)
+async def addwin(interaction: discord.Interaction,
+                 user: discord.Member):
+
+    execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
+            (str(user.id),))
+
+    execute("""
+        UPDATE users 
+        SET wins = wins + 1,
+            elo = elo + 5
+        WHERE user_id = %s
+    """, (str(user.id),))
+
+    await interaction.response.send_message(
+        f"🏆 Win Added To {user.mention}",
+        ephemeral=True
+    )
+
+
+@tree.command(name="removewin", description="Remove Win")
+@app_commands.checks.has_permissions(administrator=True)
+async def removewin(interaction: discord.Interaction,
+                    user: discord.Member):
+
+    execute("""
+        UPDATE users 
+        SET wins = GREATEST(wins - 1, 0)
+        WHERE user_id = %s
+    """, (str(user.id),))
+
+    await interaction.response.send_message(
+        f"❌ Win Removed From {user.mention}",
+        ephemeral=True
+    )
 # ==========================================================
 # 🔥 SETUP COMMANDS
 # ==========================================================
