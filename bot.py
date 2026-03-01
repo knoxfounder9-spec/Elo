@@ -267,14 +267,17 @@ async def helpgrinding(interaction: discord.Interaction):
 async def applygrindteam(interaction: discord.Interaction):
 
     questions = [
-        "How active are you daily?",
-        "What content can you help with?",
-        "Power level / Experience?",
-        "Why join Grind Team?",
-        "Willing to respond when pinged?",
-        "Have you helped others?",
-        "Understand inactivity removal?",
-        "Anything else?"
+        "1.What is your current level/progression in Kaizen?"
+
+        "2.Are you max level? If not, how familiar are you with the late-game content and mechanics?"
+
+        "3.Describe your overall game sense and knowledge of Kaizen. What areas of the game are you good in?"
+
+        "4.Have you ever helped other players in Kaizen or any similar game before?"
+
+        "5.How many hours a week can you realistically dedicate to actively helping members?"
+
+        "6.What do you think makes you a good fit for the Grind Team?"
     ]
 
     await interaction.response.send_message(
