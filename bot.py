@@ -24,7 +24,7 @@ class MyBot(discord.Client):
 
 
 bot = MyBot()
-tree = bot.tree()
+tree = bot.tree   # ✅ FIXED (NO parentheses)
 
 
 # ================= READY ================= #
@@ -114,7 +114,7 @@ async def pingrole(interaction: discord.Interaction, role: discord.Role):
 
 
 # ==========================================================
-# 🔥 HELP GRINDING (CHANNEL CREATION)
+# 🔥 HELP GRINDING
 # ==========================================================
 
 @tree.command(name="helpgrinding", description="Request Help for Grinding")
@@ -143,6 +143,10 @@ async def helpgrinding(interaction: discord.Interaction):
                 )
 
             role = interaction.guild.get_role(int(row[0][0]))
+            if not role:
+                return await select_interaction.response.send_message(
+                    "❌ Grind Role Missing", ephemeral=True
+                )
 
             category = discord.utils.get(interaction.guild.categories, name="Grinding")
             if not category:
@@ -210,7 +214,7 @@ async def applygrindteam(interaction: discord.Interaction):
             msg = await bot.wait_for("message", check=check, timeout=300)
             answers.append(msg.content)
 
-    except:
+    except asyncio.TimeoutError:
         return await dm.send("❌ Application timed out.")
 
     review_row = fetch("SELECT value FROM bot_settings WHERE key='review_channel'")
@@ -237,21 +241,17 @@ async def applygrindteam(interaction: discord.Interaction):
 
         @discord.ui.button(label="Accept", style=discord.ButtonStyle.green)
         async def accept(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
-
             await interaction.user.add_roles(grind_role)
             await btn_interaction.response.send_message("✅ Accepted")
             await interaction.user.send("🎉 You were accepted into the Grind Team!")
 
         @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
         async def decline(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
-
             await btn_interaction.response.send_message("❌ Declined")
             await interaction.user.send("❌ Your application was declined.")
 
-    content = ping_role.mention if ping_role else None
-
     await review_channel.send(
-        content=content,
+        content=ping_role.mention if ping_role else None,
         embed=embed,
         view=ReviewButtons()
     )
@@ -264,8 +264,6 @@ async def applygrindteam(interaction: discord.Interaction):
 # ==========================================================
 
 async def main():
-    await asyncio.sleep(2)
     await bot.start(TOKEN)
-
 
 asyncio.run(main())
