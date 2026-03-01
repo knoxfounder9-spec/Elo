@@ -460,6 +460,7 @@ async def applygrindteam(interaction: discord.Interaction):
 # ==========================================================
 
 async def main():
+    await bot.load_extension("revive")
     await bot.start(TOKEN)
 
 
