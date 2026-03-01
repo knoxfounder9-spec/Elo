@@ -15,7 +15,7 @@ intents = discord.Intents.default()
 intents.members = True
 
 
-class MyBot(commands.bot):
+class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
