@@ -24,7 +24,7 @@ class MyBot(discord.Client):
 
 
 bot = MyBot()
-tree = bot.tree   # ✅ FIXED (NO parentheses)
+tree = bot.tree  # ✅ CORRECT — DO NOT CALL
 
 
 # ================= READY ================= #
@@ -35,7 +35,7 @@ async def on_ready():
 
 
 # ==========================================================
-# 🔥 ELO + LEADERBOARD
+# 🔥 LEADERBOARD
 # ==========================================================
 
 @tree.command(name="leaderboard", description="Show top 10 leaderboard")
@@ -179,20 +179,20 @@ async def helpgrinding(interaction: discord.Interaction):
 
 
 # ==========================================================
-# 🔥 APPLY SYSTEM
+# 🔥 APPLY SYSTEM (WITH STAFF BUTTON CONTROLS)
 # ==========================================================
 
 @tree.command(name="applygrindteam", description="Apply For Grind Team")
 async def applygrindteam(interaction: discord.Interaction):
 
     questions = [
-        "How active are you daily? (Hours per day)",
+        "How active are you daily?",
         "What content can you help with?",
-        "What is your current power level / experience?",
-        "Why do you want to join the Grind Team?",
-        "Are you willing to respond when pinged?",
-        "Have you helped others before?",
-        "Do you understand inactivity may remove you?",
+        "Power level / Experience?",
+        "Why join Grind Team?",
+        "Willing to respond when pinged?",
+        "Have you helped others?",
+        "Understand inactivity removal?",
         "Anything else?"
     ]
 
@@ -231,24 +231,96 @@ async def applygrindteam(interaction: discord.Interaction):
     if ping_row:
         ping_role = interaction.guild.get_role(int(ping_row[0][0]))
 
-    embed = discord.Embed(title="📥 Grind Team Application", color=0x8B0000)
-    embed.add_field(name="Applicant", value=interaction.user.mention, inline=False)
+    embed = discord.Embed(
+        title="📥 Grind Team Application",
+        color=0x8B0000
+    )
+    embed.add_field(
+        name="Applicant",
+        value=interaction.user.mention,
+        inline=False
+    )
 
     for i in range(len(questions)):
-        embed.add_field(name=questions[i], value=answers[i], inline=False)
+        embed.add_field(
+            name=questions[i],
+            value=answers[i],
+            inline=False
+        )
+
+    # ================= BUTTON PANEL ================= #
 
     class ReviewButtons(View):
 
+        def __init__(self):
+            super().__init__(timeout=None)
+
+        def staff_only(self, user):
+            staff_row = fetch("SELECT value FROM bot_settings WHERE key='staff_role'")
+            if not staff_row:
+                return False
+
+            staff_role = interaction.guild.get_role(int(staff_row[0][0]))
+            return staff_role in user.roles
+
+        # -------- ACCEPT -------- #
+
         @discord.ui.button(label="Accept", style=discord.ButtonStyle.green)
         async def accept(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
+
+            if not self.staff_only(btn_interaction.user):
+                return await btn_interaction.response.send_message(
+                    "❌ Staff Only",
+                    ephemeral=True
+                )
+
             await interaction.user.add_roles(grind_role)
+
+            for item in self.children:
+                item.disabled = True
+
+            await btn_interaction.message.edit(view=self)
+
             await btn_interaction.response.send_message("✅ Accepted")
-            await interaction.user.send("🎉 You were accepted into the Grind Team!")
+
+            await interaction.user.send(
+                "🎉 Your Grind Team application was accepted!"
+            )
+
+        # -------- DECLINE -------- #
 
         @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
         async def decline(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
+
+            if not self.staff_only(btn_interaction.user):
+                return await btn_interaction.response.send_message(
+                    "❌ Staff Only",
+                    ephemeral=True
+                )
+
+            for item in self.children:
+                item.disabled = True
+
+            await btn_interaction.message.edit(view=self)
+
             await btn_interaction.response.send_message("❌ Declined")
-            await interaction.user.send("❌ Your application was declined.")
+
+            await interaction.user.send(
+                "❌ Your Grind Team application was declined."
+            )
+
+        # -------- CLOSE -------- #
+
+        @discord.ui.button(label="Close", style=discord.ButtonStyle.gray)
+        async def close(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
+
+            if not self.staff_only(btn_interaction.user):
+                return await btn_interaction.response.send_message(
+                    "❌ Staff Only",
+                    ephemeral=True
+                )
+
+            await btn_interaction.message.delete()
 
     await review_channel.send(
         content=ping_role.mention if ping_role else None,
@@ -265,5 +337,6 @@ async def applygrindteam(interaction: discord.Interaction):
 
 async def main():
     await bot.start(TOKEN)
+
 
 asyncio.run(main())
