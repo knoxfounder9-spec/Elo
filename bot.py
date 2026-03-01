@@ -255,7 +255,7 @@ async def helpgrinding(interaction: discord.Interaction):
 
 
 # ==========================================================
-# 🔥 APPLICATION SYSTEM (WITH ADMIN OR STAFF ACCESS)
+# 🔥 APPLICATION SYSTEM (AUTO ROLE + BANNER + BUTTONS)
 # ==========================================================
 
 @tree.command(name="applygrindteam", description="Apply For Grind Team")
@@ -285,13 +285,18 @@ async def applygrindteam(interaction: discord.Interaction):
             await dm.send(f"**{q}**")
 
             def check(m):
-                return m.author == interaction.user and isinstance(m.channel, discord.DMChannel)
+                return (
+                    m.author == interaction.user
+                    and isinstance(m.channel, discord.DMChannel)
+                )
 
             msg = await bot.wait_for("message", check=check, timeout=300)
             answers.append(msg.content)
 
     except asyncio.TimeoutError:
         return await dm.send("❌ Application timed out.")
+
+    # ================= SETTINGS ================= #
 
     review_row = fetch("SELECT value FROM bot_settings WHERE key='review_channel'")
     grind_row = fetch("SELECT value FROM bot_settings WHERE key='grind_role'")
@@ -307,8 +312,13 @@ async def applygrindteam(interaction: discord.Interaction):
     if ping_row:
         ping_role = interaction.guild.get_role(int(ping_row[0][0]))
 
+    # ================= EMBED WITH SMALL BANNER ================= #
+
+    logo_url = "https://your-image-link.com/logo.png"  # 🔥 CHANGE THIS
+
     embed = discord.Embed(
         title="📥 Grind Team Application",
+        description="New Application Submitted 🚀",
         color=0x8B0000
     )
 
@@ -325,35 +335,37 @@ async def applygrindteam(interaction: discord.Interaction):
             inline=False
         )
 
-    # ==================================================
-    # 🔥 BUTTON PANEL
-    # ==================================================
+    # Small Banner Style
+    embed.set_thumbnail(url=logo_url)
+    embed.set_footer(
+        text="Grind Team Recruitment System",
+        icon_url=logo_url
+    )
 
-    class ReviewButtons(View):
+    # ================= BUTTON SYSTEM ================= #
+
+    class ReviewButtons(discord.ui.View):
 
         def __init__(self):
-            super().__init__(timeout=None)
-
-        # ---------- STAFF CHECK ---------- #
+            super().__init__(timeout=86400)  # 24 Hour Expiry
 
         def staff_only(self, user: discord.Member):
 
-            # ✅ Admin Permission
             if user.guild_permissions.administrator:
                 return True
 
-            staff_row = fetch("SELECT value FROM bot_settings WHERE key='staff_role'")
+            staff_row = fetch(
+                "SELECT value FROM bot_settings WHERE key='staff_role'"
+            )
+
             if not staff_row:
                 return False
 
             staff_role = user.guild.get_role(int(staff_row[0][0]))
 
-            if staff_role and staff_role in user.roles:
-                return True
+            return staff_role in user.roles if staff_role else False
 
-            return False
-
-        # ---------- ACCEPT ---------- #
+        # -------- ACCEPT -------- #
 
         @discord.ui.button(label="Accept", style=discord.ButtonStyle.green)
         async def accept(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
@@ -364,20 +376,31 @@ async def applygrindteam(interaction: discord.Interaction):
                     ephemeral=True
                 )
 
-            await interaction.user.add_roles(grind_role)
+            if grind_role:
+                try:
+                    await interaction.user.add_roles(grind_role)
+                except discord.Forbidden:
+                    return await btn_interaction.response.send_message(
+                        "❌ Bot lacks permission to assign role.",
+                        ephemeral=True
+                    )
 
+            # Disable Buttons
             for item in self.children:
                 item.disabled = True
 
             await btn_interaction.message.edit(view=self)
 
-            await btn_interaction.response.send_message("✅ Accepted")
+            await btn_interaction.response.send_message("✅ Application Accepted")
 
-            await interaction.user.send(
-                "🎉 Your Grind Team application was accepted!"
-            )
+            try:
+                await interaction.user.send(
+                    "🎉 Your Grind Team application was accepted!"
+                )
+            except:
+                pass
 
-        # ---------- DECLINE ---------- #
+        # -------- DECLINE -------- #
 
         @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
         async def decline(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
@@ -393,13 +416,16 @@ async def applygrindteam(interaction: discord.Interaction):
 
             await btn_interaction.message.edit(view=self)
 
-            await btn_interaction.response.send_message("❌ Declined")
+            await btn_interaction.response.send_message("❌ Application Declined")
 
-            await interaction.user.send(
-                "❌ Your Grind Team application was declined."
-            )
+            try:
+                await interaction.user.send(
+                    "❌ Your application was declined."
+                )
+            except:
+                pass
 
-        # ---------- CLOSE ---------- #
+        # -------- CLOSE -------- #
 
         @discord.ui.button(label="Close", style=discord.ButtonStyle.gray)
         async def close(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
@@ -412,14 +438,22 @@ async def applygrindteam(interaction: discord.Interaction):
 
             await btn_interaction.message.delete()
 
+        async def on_timeout(self):
+            try:
+                await self.message.delete()
+            except:
+                pass
+
+    # ================= SEND TO REVIEW CHANNEL ================= #
+
     await review_channel.send(
         content=ping_role.mention if ping_role else None,
         embed=embed,
         view=ReviewButtons()
     )
 
-    await dm.send("✅ Application submitted!")
-
+    await dm.send("✅ Application submitted successfully!")
+        
 
 # ==========================================================
 # 🔥 START BOT
