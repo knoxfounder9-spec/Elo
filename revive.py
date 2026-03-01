@@ -11,12 +11,8 @@ import random
 
 JJK_MESSAGES = [
     "🔥 The cursed energy is rising...",
-    "⚡ Domain Expansion Activated!",
     "🩸 Battle resumes... Who's strongest now?",
     "👑 A new challenger enters the battlefield!",
-    "💀 Curses awaken from the shadows...",
-    "⚔️ Let the fight begin again!",
-    "🔥 Sukuna laughs at the chaos..."
 ]
 
 
@@ -37,11 +33,18 @@ class Revive(commands.Cog):
             channel_id TEXT
         );
         """)
+
+        execute("""
+        CREATE TABLE IF NOT EXISTS revive_role (
+            role_id TEXT
+        );
+        """)
+
         print("✅ Revive System Ready")
 
-    # ===============================
+    # ======================================================
     # SET REVIVE CHANNEL
-    # ===============================
+    # ======================================================
 
     @app_commands.command(
         name="setrevivechannel",
@@ -65,9 +68,36 @@ class Revive(commands.Cog):
             ephemeral=True
         )
 
-    # ===============================
+    # ======================================================
+    # SET REVIVE ROLE (PING ROLE)
+    # ======================================================
+
+    @app_commands.command(
+        name="chatreviverole",
+        description="Set Role To Ping On Auto & Instant Revive"
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def chatreviverole(
+        self,
+        interaction: discord.Interaction,
+        role: discord.Role
+    ):
+
+        execute("DELETE FROM revive_role")
+
+        execute(
+            "INSERT INTO revive_role (role_id) VALUES (%s)",
+            (str(role.id),)
+        )
+
+        await interaction.response.send_message(
+            f"✅ Revive Ping Role Set To {role.mention}",
+            ephemeral=True
+        )
+
+    # ======================================================
     # INSTANT REVIVE
-    # ===============================
+    # ======================================================
 
     @app_commands.command(
         name="instantchatrevive",
@@ -84,8 +114,7 @@ class Revive(commands.Cog):
                 ephemeral=True
             )
 
-        channel_id = row[0][0]
-        channel = interaction.guild.get_channel(int(channel_id))
+        channel = interaction.guild.get_channel(int(row[0][0]))
 
         if not channel:
             return await interaction.response.send_message(
@@ -95,8 +124,17 @@ class Revive(commands.Cog):
 
         message = random.choice(JJK_MESSAGES)
 
+        # 🔥 Get Role To Ping
+        role_row = fetch("SELECT role_id FROM revive_role LIMIT 1")
+
+        role_mention = ""
+        if role_row:
+            role = interaction.guild.get_role(int(role_row[0][0]))
+            if role:
+                role_mention = role.mention
+
         await channel.send(
-            f"@everyone\n🔥 **Instant Revival Activated** 🔥\n{message}"
+            f"{role_mention}\n🔥 **Instant Revival Activated** 🔥\n{message}"
         )
 
         await interaction.response.send_message(
@@ -104,9 +142,9 @@ class Revive(commands.Cog):
             ephemeral=True
         )
 
-    # ===============================
-    # AUTO REVIVE TASK (EVERY HOUR)
-    # ===============================
+    # ======================================================
+    # AUTO REVIVE (EVERY HOUR)
+    # ======================================================
 
     @tasks.loop(hours=1)
     async def auto_revive(self):
@@ -116,26 +154,35 @@ class Revive(commands.Cog):
         if not row:
             return
 
-        channel_id = row[0][0]
-
         for guild in self.bot.guilds:
-            channel = guild.get_channel(int(channel_id))
 
-            if channel:
-                message = random.choice(JJK_MESSAGES)
+            channel = guild.get_channel(int(row[0][0]))
+            if not channel:
+                continue
 
-                await channel.send(
-                    f"@everyone\n🔥 **Auto Chat Revival** 🔥\n{message}"
-                )
+            message = random.choice(JJK_MESSAGES)
+
+            # 🔥 Get Role To Ping
+            role_row = fetch("SELECT role_id FROM revive_role LIMIT 1")
+
+            role_mention = ""
+            if role_row:
+                role = guild.get_role(int(role_row[0][0]))
+                if role:
+                    role_mention = role.mention
+
+            await channel.send(
+                f"{role_mention}\n🔥 **Auto Chat Revival** 🔥\n{message}"
+            )
 
     @auto_revive.before_loop
     async def before_auto_revive(self):
         await self.bot.wait_until_ready()
 
 
-# ===============================
+# ======================================================
 # LOAD FUNCTION
-# ===============================
+# ======================================================
 
 async def setup(bot):
     await bot.add_cog(Revive(bot))
