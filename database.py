@@ -1,4 +1,5 @@
 import psycopg2
+from psycopg2 import OperationalError
 from config import DATABASE_URL
 import time
 import sys
@@ -7,22 +8,26 @@ conn = None
 cursor = None
 
 
+# ================= CONNECTION ================= #
+
 def connect():
     global conn, cursor
 
     if not DATABASE_URL:
         raise Exception("❌ DATABASE_URL not found!")
 
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        conn.autocommit = False
-        cursor = conn.cursor()
-        print("✅ Database Connected")
+    while True:
+        try:
+            conn = psycopg2.connect(DATABASE_URL)
+            conn.autocommit = False
+            cursor = conn.cursor()
+            print("✅ Database Connected")
+            break
 
-    except Exception as e:
-        print("❌ DB Connection Failed:", e)
-        time.sleep(5)
-        connect()
+        except Exception as e:
+            print("❌ DB Connection Failed:", e)
+            print("🔁 Retrying in 5 seconds...")
+            time.sleep(5)
 
 
 connect()
@@ -57,7 +62,6 @@ try:
     """)
 
     conn.commit()
-
     print("✅ Tables Verified")
 
 except Exception as e:
@@ -65,21 +69,41 @@ except Exception as e:
     sys.exit(1)
 
 
-# ================= QUERY FUNCTIONS ================= #
+# ================= SAFE EXECUTE ================= #
 
 def execute(query, values=()):
+    global conn, cursor
+
     try:
         cursor.execute(query, values)
         conn.commit()
+
+    except OperationalError:
+        print("⚠️ Lost DB connection. Reconnecting...")
+        connect()
+        cursor.execute(query, values)
+        conn.commit()
+
     except Exception as e:
         conn.rollback()
         print("❌ SQL Execute Error:", e)
 
 
+# ================= SAFE FETCH ================= #
+
 def fetch(query, values=()):
+    global conn, cursor
+
     try:
         cursor.execute(query, values)
         return cursor.fetchall()
+
+    except OperationalError:
+        print("⚠️ Lost DB connection. Reconnecting...")
+        connect()
+        cursor.execute(query, values)
+        return cursor.fetchall()
+
     except Exception as e:
         print("❌ SQL Fetch Error:", e)
         return []
