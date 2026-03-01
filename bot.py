@@ -24,7 +24,7 @@ class MyBot(discord.Client):
 
 
 bot = MyBot()
-tree = bot.tree  # ✅ CORRECT — DO NOT CALL
+tree = bot.tree
 
 
 # ================= READY ================= #
@@ -179,7 +179,7 @@ async def helpgrinding(interaction: discord.Interaction):
 
 
 # ==========================================================
-# 🔥 APPLY SYSTEM (WITH STAFF BUTTON CONTROLS)
+# 🔥 APPLICATION SYSTEM (WITH ADMIN OR STAFF ACCESS)
 # ==========================================================
 
 @tree.command(name="applygrindteam", description="Apply For Grind Team")
@@ -235,6 +235,7 @@ async def applygrindteam(interaction: discord.Interaction):
         title="📥 Grind Team Application",
         color=0x8B0000
     )
+
     embed.add_field(
         name="Applicant",
         value=interaction.user.mention,
@@ -248,22 +249,35 @@ async def applygrindteam(interaction: discord.Interaction):
             inline=False
         )
 
-    # ================= BUTTON PANEL ================= #
+    # ==================================================
+    # 🔥 BUTTON PANEL
+    # ==================================================
 
     class ReviewButtons(View):
 
         def __init__(self):
             super().__init__(timeout=None)
 
-        def staff_only(self, user):
+        # ---------- STAFF CHECK ---------- #
+
+        def staff_only(self, user: discord.Member):
+
+            # ✅ Admin Permission
+            if user.guild_permissions.administrator:
+                return True
+
             staff_row = fetch("SELECT value FROM bot_settings WHERE key='staff_role'")
             if not staff_row:
                 return False
 
-            staff_role = interaction.guild.get_role(int(staff_row[0][0]))
-            return staff_role in user.roles
+            staff_role = user.guild.get_role(int(staff_row[0][0]))
 
-        # -------- ACCEPT -------- #
+            if staff_role and staff_role in user.roles:
+                return True
+
+            return False
+
+        # ---------- ACCEPT ---------- #
 
         @discord.ui.button(label="Accept", style=discord.ButtonStyle.green)
         async def accept(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
@@ -287,7 +301,7 @@ async def applygrindteam(interaction: discord.Interaction):
                 "🎉 Your Grind Team application was accepted!"
             )
 
-        # -------- DECLINE -------- #
+        # ---------- DECLINE ---------- #
 
         @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
         async def decline(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
@@ -309,7 +323,7 @@ async def applygrindteam(interaction: discord.Interaction):
                 "❌ Your Grind Team application was declined."
             )
 
-        # -------- CLOSE -------- #
+        # ---------- CLOSE ---------- #
 
         @discord.ui.button(label="Close", style=discord.ButtonStyle.gray)
         async def close(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
