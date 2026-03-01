@@ -382,7 +382,7 @@ async def applygrindteam(interaction: discord.Interaction):
 
             if grind_role:
                 try:
-                    await interaction.user.add_roles(grind_role)
+                    await btn_interaction.user.add_roles(grind_role)
                 except discord.Forbidden:
                     return await btn_interaction.response.send_message(
                         "❌ Bot lacks permission to assign role.",
