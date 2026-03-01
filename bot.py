@@ -1,4 +1,5 @@
 import discord
+import discord.ext import commands
 from discord import app_commands
 from discord.ui import Select, View
 from config import TOKEN
@@ -13,7 +14,7 @@ intents = discord.Intents.default()
 intents.members = True
 
 
-class MyBot(discord.Client):
+class MyBot(commands.bot):
     def __init__(self):
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
