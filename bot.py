@@ -23,6 +23,7 @@ class MyBot(commands.Bot):
         )
 
     async def setup_hook(self):
+        await bot.load_extension("revive")
         await self.tree.sync()
         print("✅ Slash Commands Synced")
 
@@ -465,7 +466,7 @@ async def applygrindteam(interaction: discord.Interaction):
 
 async def main():
     async with bot:
-        await bot.load_extension("revive")
+        
         await bot.start(TOKEN)
 
 
