@@ -3,7 +3,6 @@ from discord import app_commands
 from discord.ui import Select, View
 from config import TOKEN
 from database import execute, fetch
-from history import add_match
 from leaderboard import generate_leaderboard_embed
 import asyncio
 
@@ -25,30 +24,10 @@ class MyBot(discord.Client):
 
 
 bot = MyBot()
-tree = bot.tree
+tree = bot.tree()
 
 
-# ================= ERROR HANDLING ================= #
-
-@bot.event
-async def on_error(event, *args, **kwargs):
-    import traceback
-    traceback.print_exc()
-
-
-@tree.error
-async def on_command_error(interaction: discord.Interaction, error: Exception):
-
-    print("Slash Error:", error)
-
-    if not interaction.response.is_done():
-        await interaction.response.send_message(
-            f"❌ Error: {error}",
-            ephemeral=True
-        )
-
-
-# ================= BOT READY ================= #
+# ================= READY ================= #
 
 @bot.event
 async def on_ready():
@@ -56,58 +35,20 @@ async def on_ready():
 
 
 # ==========================================================
-# 🔥 ELO SYSTEM
+# 🔥 ELO + LEADERBOARD
 # ==========================================================
-
-@tree.command(name="giveelo", description="Give elo to a user")
-@app_commands.checks.has_permissions(administrator=True)
-async def giveelo(interaction: discord.Interaction,
-                  user: discord.Member,
-                  amount: int):
-
-    execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
-            (str(user.id),))
-
-    execute("UPDATE users SET elo = elo + %s WHERE user_id=%s",
-            (amount, str(user.id)))
-
-    await interaction.response.send_message(
-        f"✅ Added {amount} Elo to {user.mention}"
-    )
-
-
-@tree.command(name="removeelo", description="Remove elo from a user")
-@app_commands.checks.has_permissions(administrator=True)
-async def removeelo(interaction: discord.Interaction,
-                    user: discord.Member,
-                    amount: int):
-
-    execute("INSERT INTO users (user_id) VALUES (%s) ON CONFLICT DO NOTHING",
-            (str(user.id),))
-
-    execute("UPDATE users SET elo = elo - %s WHERE user_id=%s",
-            (amount, str(user.id)))
-
-    await interaction.response.send_message(
-        f"❌ Removed {amount} Elo from {user.mention}"
-    )
-
 
 @tree.command(name="leaderboard", description="Show top 10 leaderboard")
 async def leaderboard(interaction: discord.Interaction):
-
     await interaction.response.defer()
-
     embed = generate_leaderboard_embed()
-
     await interaction.followup.send(embed=embed)
 
 
 # ==========================================================
-# 🔥 GRIND TEAM SYSTEM
+# 🔥 SETUP COMMANDS
 # ==========================================================
 
-# Store Grind Role
 @tree.command(name="setgrindteam", description="Set Grind Team Role")
 @app_commands.checks.has_permissions(administrator=True)
 async def setgrindteam(interaction: discord.Interaction, role: discord.Role):
@@ -124,7 +65,58 @@ async def setgrindteam(interaction: discord.Interaction, role: discord.Role):
     )
 
 
-# Help Grinding Command
+@tree.command(name="setstaffrole", description="Set Staff Role")
+@app_commands.checks.has_permissions(administrator=True)
+async def setstaffrole(interaction: discord.Interaction, role: discord.Role):
+
+    execute("""
+        INSERT INTO bot_settings (key, value)
+        VALUES ('staff_role', %s)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    """, (str(role.id),))
+
+    await interaction.response.send_message(
+        f"✅ Staff Role Set: {role.mention}",
+        ephemeral=True
+    )
+
+
+@tree.command(name="setreviewchannel", description="Set Application Review Channel")
+@app_commands.checks.has_permissions(administrator=True)
+async def setreviewchannel(interaction: discord.Interaction, channel: discord.TextChannel):
+
+    execute("""
+        INSERT INTO bot_settings (key, value)
+        VALUES ('review_channel', %s)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    """, (str(channel.id),))
+
+    await interaction.response.send_message(
+        f"✅ Review Channel Set: {channel.mention}",
+        ephemeral=True
+    )
+
+
+@tree.command(name="pingrole", description="Set Role To Ping On Applications")
+@app_commands.checks.has_permissions(administrator=True)
+async def pingrole(interaction: discord.Interaction, role: discord.Role):
+
+    execute("""
+        INSERT INTO bot_settings (key, value)
+        VALUES ('ping_role', %s)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    """, (str(role.id),))
+
+    await interaction.response.send_message(
+        f"✅ Ping Role Set: {role.mention}",
+        ephemeral=True
+    )
+
+
+# ==========================================================
+# 🔥 HELP GRINDING (CHANNEL CREATION)
+# ==========================================================
+
 @tree.command(name="helpgrinding", description="Request Help for Grinding")
 async def helpgrinding(interaction: discord.Interaction):
 
@@ -135,11 +127,8 @@ async def helpgrinding(interaction: discord.Interaction):
                 discord.SelectOption(label="Raids"),
                 discord.SelectOption(label="WorldBosses"),
             ]
-
             super().__init__(
                 placeholder="Select What You Need Help With...",
-                min_values=1,
-                max_values=1,
                 options=options
             )
 
@@ -147,29 +136,18 @@ async def helpgrinding(interaction: discord.Interaction):
 
             choice = self.values[0]
 
-            # Get Grind Role From DB
             row = fetch("SELECT value FROM bot_settings WHERE key='grind_role'")
-
             if not row:
-                await select_interaction.response.send_message(
-                    "❌ Grind Role Not Set",
-                    ephemeral=True
+                return await select_interaction.response.send_message(
+                    "❌ Grind Role Not Set", ephemeral=True
                 )
-                return
 
-            role_id = int(row[0][0])
-            role = interaction.guild.get_role(role_id)
+            role = interaction.guild.get_role(int(row[0][0]))
 
-            # Get/Create Category
-            category = discord.utils.get(
-                interaction.guild.categories,
-                name="Grinding"
-            )
-
+            category = discord.utils.get(interaction.guild.categories, name="Grinding")
             if not category:
                 category = await interaction.guild.create_category("Grinding")
 
-            # Create Channel
             channel = await interaction.guild.create_text_channel(
                 name=f"{choice.lower()}-{interaction.user.name}",
                 category=category
@@ -194,6 +172,91 @@ async def helpgrinding(interaction: discord.Interaction):
         view=view,
         ephemeral=True
     )
+
+
+# ==========================================================
+# 🔥 APPLY SYSTEM
+# ==========================================================
+
+@tree.command(name="applygrindteam", description="Apply For Grind Team")
+async def applygrindteam(interaction: discord.Interaction):
+
+    questions = [
+        "How active are you daily? (Hours per day)",
+        "What content can you help with?",
+        "What is your current power level / experience?",
+        "Why do you want to join the Grind Team?",
+        "Are you willing to respond when pinged?",
+        "Have you helped others before?",
+        "Do you understand inactivity may remove you?",
+        "Anything else?"
+    ]
+
+    await interaction.response.send_message(
+        "📬 Check your DMs to complete the application.",
+        ephemeral=True
+    )
+
+    dm = await interaction.user.create_dm()
+    answers = []
+
+    try:
+        for q in questions:
+            await dm.send(f"**{q}**")
+
+            def check(m):
+                return m.author == interaction.user and isinstance(m.channel, discord.DMChannel)
+
+            msg = await bot.wait_for("message", check=check, timeout=300)
+            answers.append(msg.content)
+
+    except:
+        return await dm.send("❌ Application timed out.")
+
+    review_row = fetch("SELECT value FROM bot_settings WHERE key='review_channel'")
+    grind_row = fetch("SELECT value FROM bot_settings WHERE key='grind_role'")
+    ping_row = fetch("SELECT value FROM bot_settings WHERE key='ping_role'")
+
+    if not review_row or not grind_row:
+        return await dm.send("❌ System not configured.")
+
+    review_channel = interaction.guild.get_channel(int(review_row[0][0]))
+    grind_role = interaction.guild.get_role(int(grind_row[0][0]))
+
+    ping_role = None
+    if ping_row:
+        ping_role = interaction.guild.get_role(int(ping_row[0][0]))
+
+    embed = discord.Embed(title="📥 Grind Team Application", color=0x8B0000)
+    embed.add_field(name="Applicant", value=interaction.user.mention, inline=False)
+
+    for i in range(len(questions)):
+        embed.add_field(name=questions[i], value=answers[i], inline=False)
+
+    class ReviewButtons(View):
+
+        @discord.ui.button(label="Accept", style=discord.ButtonStyle.green)
+        async def accept(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
+
+            await interaction.user.add_roles(grind_role)
+            await btn_interaction.response.send_message("✅ Accepted")
+            await interaction.user.send("🎉 You were accepted into the Grind Team!")
+
+        @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
+        async def decline(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
+
+            await btn_interaction.response.send_message("❌ Declined")
+            await interaction.user.send("❌ Your application was declined.")
+
+    content = ping_role.mention if ping_role else None
+
+    await review_channel.send(
+        content=content,
+        embed=embed,
+        view=ReviewButtons()
+    )
+
+    await dm.send("✅ Application submitted!")
 
 
 # ==========================================================
