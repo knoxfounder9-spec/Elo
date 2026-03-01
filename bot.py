@@ -1,7 +1,8 @@
 import discord
-import discord.ext import commands
 from discord import app_commands
+from discord.ext import commands   # ✅ FIXED
 from discord.ui import Select, View
+
 from config import TOKEN
 from database import execute, fetch
 from leaderboard import generate_leaderboard_embed
